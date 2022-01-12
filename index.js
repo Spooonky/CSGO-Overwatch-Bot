@@ -19,6 +19,10 @@ if (USING_STEAMWORKS) {
 	console.log("WARNING: Using Steamworks - This is experimental");
 }
 
+function randomIntFromIntervall(min, max) {
+	return Math.floor(Math.random() * (max - min) + min); //randomize and add 3 Seconds.
+}
+
 const steam = USING_STEAMWORKS ? new Steamworks() : new SteamUser();
 const coordinator = new Coordinator(steam, 730);
 const objectHandler = {};
@@ -29,6 +33,8 @@ let playStateBlocked = false;
 let loginPersonaCheck = false;
 let tempLoginKey = undefined;
 let casesCompleted = 0;
+let verdictNumber = config.verdict.verdictNumber;
+let verdictNumberDone = 0;
 let timings = {
 	Downloading: 0,
 	Unpacking: 0,
@@ -215,13 +221,13 @@ steam.on("appLaunched", async (appID) => {
 		steam.logOff();
 		return;
 	}
-
+/* Since the last update you can also use OW with temporary ban 
 	if (typeof mmWelcome.penalty_reason === "number" && mmWelcome.penalty_reason > 0) {
 		console.log("Cannot do Overwatch cases while on cooldown.");
 		steam.logOff();
 		return;
 	}
-
+*/
 	if (typeof mmWelcome.vac_banned === "number" && mmWelcome.vac_banned > 0) {
 		console.log("Cannot do Overwatch cases while VAC banned.");
 		steam.logOff();
@@ -663,6 +669,7 @@ coordinator.on("receivedFromGC", async (msgType, payload) => {
 		demo.logResults();
 
 		console.log("Cases completed this session: " + ++casesCompleted);
+		console.log("verdicts Done before pause" + ++verdictNumberDone); 
 
 
 		// Log timings
@@ -754,25 +761,22 @@ coordinator.on("receivedFromGC", async (msgType, payload) => {
 			return;
 		}
 
-		if (config.verdict.timeAfterVerdicts > 0 && casesCompleted >= config.verdict.verdictNumber) {
-			console.log("Finished doing " + config.verdict.verdictNumber + "verdict" + (config.verdict.verdictNumber === 1 ? "" : "s"));
+		if (verdictNumber > 0 && verdictNumberDone >= verdictNumber) {
+			console.log("Finished doing " + verdictNumber + "verdict" + (verdictNumber === 1 ? "" : "s"));
 			console.log("Waiting 2 hours before attemp a new Overwatch case.");
-			timeBetween = config.verdict.waitingTime
-			await new Promise(p => setTimeout(p, (timeBetween * 1000))); // Wait 2 hours before requesting a new case. Cases defined in config.json through maxVerdicts
-			casesCompleted = 0;
+			timeBetween = config.verdict.waitingTime;
+			verdictNumber = randomIntFromIntervall(3,9);
+			verdictNumberDone = 0;
+			await new Promise(p => setTimeout(p, (timeBetween * 1000))); // Wait declared time before requesting a new case. Cases defined in config.json through maxVerdicts
 			return;
 		}
 
-		// Added waiting time between the Cases to huminize the bot
+		// Added waiting time between the Cases to humanize the bot
 		
 		let minTime = config.verdict.minTimeBetweenCases;
 		let maxTime = config.verdict.maxTimeBetweenCases;
 
 		if (config.verdict.randomizePauseTime) {
-
-		function randomIntFromIntervall(min, max) {
-			return Math.floor(Math.random() * (max - min + 3) + min); //randomize and add 3 Seconds.
-		}
 		const random = randomIntFromIntervall(minTime, maxTime);
 		delaydiff = (random * 1000);
 		let delayrawsec = Math.ceil(delaydiff / 1000);
